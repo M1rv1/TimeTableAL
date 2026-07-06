@@ -1,10 +1,9 @@
 from tkinter import ttk
 from tkinter import *
 from sqlite3 import *
-from os import environ, makedirs, path
+from os import makedirs, path
 import os
 from ortools.sat.python import cp_model
-from sqlite3 import *
 import random
 from openpyxl import Workbook
 from itertools import product
@@ -738,6 +737,50 @@ class creating_timetable:
         for ext in values_e:
             extra_les[id_to_clas[str(ext[1])]].append(ext[2])
         # print(extra_les)   
+        ###
+
+        #Исправление слэшей
+        povtor = {}
+        
+        # "8А": {
+
+        # 'Киселев А.С.' : [
+        #     ["Алгебра", 5], ["Геометрия", 3], ["Теор вер", 1]
+        # ],
+
+        # 'Пятибратова К.В.' : [
+        #     ["Общество", 1], ["Музыка", 1]
+        # ]
+        # }
+
+        cl = {}
+        self.con.execute("""SELECT * FROM parallels""")
+        values = self.con.fetchall()    
+        for (id, letter, number) in values:
+            cl[int(id)] = number + letter
+        
+        tc = {}
+        self.con.execute("""SELECT * FROM teachers""")
+        values = self.con.fetchall()    
+        for (id, Surname, Name, Patrony, trans) in values:
+            tc[int(id)] = f'{Surname} {Name[0]}. {Patrony[0]}.'
+
+        less = []
+        self.con.execute("""SELECT * FROM lessons""")
+        values = self.con.fetchall() 
+        for (id, id_p, subject, hours, id_t) in values:
+            less.append([cl[int(id_p)], tc[int(id_t)], subject, hours])
+        
+        for (name_cl, name_t, subject, hours) in less:
+            povtor[name_cl] = {}
+        
+        for (name_cl, name_t, subject, hours) in less:
+            povtor[name_cl][name_t] = []
+        
+        for (name_cl, name_t, subject, hours) in less:
+            povtor[name_cl][name_t].append([subject, int(hours)])
+
+        print(povtor)
         ###
 
         #Учителя
@@ -1898,7 +1941,68 @@ class creating_timetable:
         print("-"*70)
 
         print(f"Нормативно должно быть: {count}")
+        # # --------------------------------------------
+# # 6.1. Коррекция названий предметов
+# # --------------------------------------------
 
+#*******************************************************************************************************
+
+        for c in classes:
+        
+            cur = [] 
+            name = c['name']
+            for lesson in final_timetable:
+            
+                if lesson['Класс'] == name:
+                    cur.append(lesson)
+
+        #{'День': 'Сб', 'Урок': 2, 'Класс': '8А', 'Учитель': 'Пятибратова К.В.', 'Корпус': '1', 'Предмет': 'Общество/Музыка', 'Кабинет': '203'}
+            for (t_name, t_lessons) in povtor[name].items():
+                curennt_lessons = sorted(t_lessons, key=lambda x: x[1], reverse= True)
+                for i in range(0, len(cur) - 1):
+                    #Если пара сейчас
+                    if cur[i]['Учитель'] == t_name and cur[i + 1]['Учитель'] == t_name and cur[i]['День'] == cur[i + 1]['День'] and '/' in cur[i]['Предмет'] and '/' in cur[i + 1]['Предмет']:
+                        if curennt_lessons[0][1] >= 2:
+                            curennt_lessons[0][1] -= 2
+                            cur[i]['Предмет'] = curennt_lessons[0][0]
+                            cur[i + 1]['Предмет'] = curennt_lessons[0][0]
+                            curennt_lessons = sorted(t_lessons, key=lambda x: x[1], reverse= True)
+                        else:
+                            count = 0
+                            for c_l in curennt_lessons:
+                                if count == 2:
+                                    break
+                                if c_l[1] == 1:
+                                    c_l[1] -= 1
+                                    cur[i + count]['Предмет'] = c_l[0]
+                                    count += 1
+                            curennt_lessons = sorted(t_lessons, key=lambda x: x[1], reverse= True)
+
+                    elif cur[i]['Учитель'] == t_name and cur[i + 1]['Учитель'] != t_name and '/' in cur[i]['Предмет']:
+                        for j in range(len(curennt_lessons) - 1, -1, -1):
+                            if curennt_lessons[j][1] != 0:
+                                cur[i]['Предмет'] = curennt_lessons[j][0]
+                                curennt_lessons[j][1] -= 1
+                                curennt_lessons = sorted(t_lessons, key=lambda x: x[1], reverse= True)
+                                break
+                            
+                    elif cur[i]['Учитель'] == t_name and cur[i + 1]['День'] != cur[i]['День'] and '/' in cur[i]['Предмет']:
+                        for j in range(len(curennt_lessons) - 1, -1, -1):
+                                if curennt_lessons[j][1] != 0:
+                                    cur[i]['Предмет'] = curennt_lessons[j][0]
+                                    curennt_lessons[j][1] -= 1
+                                    curennt_lessons = sorted(t_lessons, key=lambda x: x[1], reverse= True)
+                                    break
+                                
+                if cur[len(cur) - 1]['Учитель'] == t_name and '/' in cur[len(cur) - 1]['Предмет']:
+                    for j in range(len(curennt_lessons) - 1, -1, -1):
+                            if curennt_lessons[j][1] != 0:
+                                cur[len(cur) - 1]['Предмет'] = curennt_lessons[j][0]
+                                break
+            final_timetable += cur
+
+#*******************************************************************************************************
+    
 
         # # --------------------------------------------
         # # 7. Вывод расписания в excel 
