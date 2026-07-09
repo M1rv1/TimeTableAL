@@ -5,7 +5,7 @@ from openpyxl import Workbook
 from itertools import product
 from openpyxl.styles import Alignment, PatternFill, Font, Border, Side
 from openpyxl.utils import get_column_letter
-
+ 
 # --------------------------------------------
 # 1. Входные данные 
 # --------------------------------------------
