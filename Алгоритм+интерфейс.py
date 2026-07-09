@@ -656,7 +656,7 @@ class creating_timetable:
     
     def _show_success_popup(self):
         """Безопасно показать popup успеха в главном потоке"""
-        warning = popup(self.root, "Откройте входные данные", "Успех")
+        warning = popup(self.root, "Откройте выходные данные", "Успех")
         warning.root.mainloop()
     
     def _show_error_popup(self):
